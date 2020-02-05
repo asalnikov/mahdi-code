@@ -1,0 +1,28 @@
+Sub transfer()
+Dim i As Long, j As Long, lastrow1 As Long, lastrow2 As Long
+Dim user As String
+lastrow1 = Sheets("sheet1").Range("A" & Rows.Count).End(xlUp).Row
+
+For i = 2 To lastrow1
+user = Sheets("sheet1").Cells(i, "A").Value
+
+Sheets("statistics").Activate
+lastrow2 = Sheets("statistics").Range("F" & Rows.Count).End(xlUp).Row
+
+For j = 2 To lastrow2
+
+If Sheets("statistics").Cells(j, "F").Value = user Then
+Sheets("sheet1").Activate
+Sheets("sheet1").Range(Cells(i, "H"), Cells(i, "H")).Copy
+Sheets("statistics").Activate
+Sheets("statistics").Range(Cells(j, "T"), Cells(j, "T")).Select
+ActiveSheet.Paste
+End If
+
+Next j
+Application.CutCopyMode = False
+Next i
+Sheets("sheet1").Activate
+Sheets("sheet1").Range("A1").Select
+End Sub
+
