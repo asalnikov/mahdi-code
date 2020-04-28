@@ -4,7 +4,7 @@
 # from sklearn.tree import DecisionTreeClassifier
 
 # Точное название используемой библиотеки
-# Пока работает только: sklearn, tensorflow, other
+# Пока работает только: tensorflow, other (в том числе sklearn)
 ml_lib = "other"
 
 # logs = np.array([1, 2, 3])
@@ -12,7 +12,7 @@ ml_lib = "other"
 
 def fit(logs, sinfo):
     # return DecisionTreeClassifier(kakieto_params)
-    pass
+    return 6
 
 # ml = fit(logs, sinfo)
 # params = ["qwq", "23", "-B"]

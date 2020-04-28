@@ -4,6 +4,7 @@
       <w>mlpd</w>
       <w>sigfitupdate</w>
       <w>sigpredictupdate</w>
+      <w>tensorflow</w>
     </words>
   </dictionary>
 </component>

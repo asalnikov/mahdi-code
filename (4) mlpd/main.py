@@ -5,7 +5,7 @@ import configparser
 import signal
 import flask
 import importlib
-import sklearn
+import pickle
 import tensorflow
 import slurmdb_import as sdbi
 
@@ -23,7 +23,7 @@ MLModule = conf.get("MLPD", "MLModule")
 MLModule = importlib.import_module(MLModule)
 FitUpdateTime = conf.get("MLPD", "FitUpdateTime")
 FitUpdateTime = int(FitUpdateTime) * 60 * 60
-MLModelFile = conf.get("MLPD", "SavedModel")
+MLModelFileStr = conf.get("MLPD", "SavedModel")
 
 
 # ML
@@ -40,9 +40,10 @@ MLModelFile_mtx = threading.Lock()
 def save_model(MLModel):
     MLModelFile_mtx.acquire()
     if MLModule.ml_lib == "tensorflow":
-        MLModel.save(MLModelFile)
-    elif MLModule.ml_lib == "sklearn":
-        exit(1)
+        MLModel.save(MLModelFileStr)
+    elif MLModule.ml_lib == "other":
+        with open(MLModelFileStr, 'wb') as f:
+            pickle.dump(MLModel, f)
     else:
         exit(1)
     MLModelFile_mtx.release()
@@ -51,9 +52,10 @@ def load_model():
     MLModel = 0
     MLModelFile_mtx.acquire()
     if MLModule.ml_lib == "tensorflow":
-        MLModel = tensorflow.keras.models.load_model(MLModelFile)
-    elif MLModule.ml_lib == "sklearn":
-        exit(1)
+        MLModel = tensorflow.keras.models.load_model(MLModelFileStr)
+    elif MLModule.ml_lib == "other":
+        with open(MLModelFileStr, 'rb') as f:
+            MLModel = pickle.load(f)
     else:
         exit(1)
     MLModelFile_mtx.release()
