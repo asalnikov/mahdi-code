@@ -48,6 +48,7 @@ def save_model(MLModel):
     MLModelFile_mtx.release()
 
 def load_model():
+    MLModel = 0
     MLModelFile_mtx.acquire()
     if MLModule.ml_lib == "tensorflow":
         MLModel = tensorflow.keras.models.load_model(MLModelFile)
