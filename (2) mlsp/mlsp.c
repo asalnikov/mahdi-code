@@ -16,6 +16,7 @@ SPANK_PLUGIN(mlsp, 1);
 
 static int _predicttime (int val, const char *optarg, int remote) {
     ///   как сюда передать аргументы srun?
+    /// аргументы нужны ac, av из slurm_spank_init (ac, av)
 
     _exit(0);
 }
