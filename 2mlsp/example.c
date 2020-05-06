@@ -12,6 +12,7 @@
 #include <sys/resource.h>
 
 #include <slurm/spank.h>
+#include <src/common/plugstack.c>
 
 /*
  * All spank plugins must define this macro for the
