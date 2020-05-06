@@ -14,6 +14,8 @@
 #include <sys/resource.h>
 #include <slurm/spank.h>
 
+#include <src/common/plugstack.c>
+
 
 // Work with predict-time-server
 static int mlsp_ac;
@@ -58,6 +60,7 @@ SPANK_PLUGIN(mlsp, 1);
 
 static int predicttime_wrapper (int val, const char *optarg, int remote) {
     predicttime(mlsp_ac, mlsp_av);
+    //return 0;
     _exit (0);
 }
 
@@ -72,16 +75,29 @@ struct spank_option spank_options[] = {
     SPANK_OPTIONS_TABLE_END
 };
 
+// ____________________________________________________
+// some trash
+//extern enum spank_context_type;
+
 
 int slurm_spank_init (spank_t sp, int ac, char** av) {
     // Если не в srun / sbatch, то просто выйдем из функции и продолжится работа slurm
-    if (!( (spank_context () == S_CTX_LOCAL) || (spank_context () == S_CTX_ALLOCATOR) ))
+    //if (!( (spank_context () == S_CTX_LOCAL) || (spank_context () == S_CTX_ALLOCATOR) ))
+    if (spank_context () != S_CTX_LOCAL)
         return (0);
+
+    if ( sp->job == NULL )
+        slurm_info("uzhas");
+
+    //enum spank_context_type A;
+    //A = sp->stack->type;
+    //slurm_info("%d", (int)A);
+
 
     int test_ac = 15;
     char** test_av;
     int a = spank_get_item(sp, S_JOB_ARGV, &test_ac, &test_av);
-    slurm_info("%d\n", a);
+    slurm_info("error %d, ac = %d, test_ac=%d", a, ac, test_ac);
 
 
     mlsp_ac = ac;
