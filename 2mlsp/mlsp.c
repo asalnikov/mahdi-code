@@ -18,8 +18,8 @@
 
 
 // Work with predict-time-server
-//static int mlsp_ac;
-//static char** mlsp_av;
+static int mlsp_ac;
+static char** mlsp_av;
 
 // ["s1", "s2", "s3"]
 void json_getstr (char* json_str, int ac, char** av) {
@@ -29,6 +29,8 @@ void json_getstr (char* json_str, int ac, char** av) {
         strcat(json_str, "\"");
         strcat(json_str, av[i]);
         strcat(json_str, "\"");
+        if (i != ac - 1)
+            strcat(json_str, ", ");
     }
     strcat(json_str, "]");
 }
@@ -49,6 +51,7 @@ void curl_getstr (char* curl_str, int ac, char** av) {
 int predicttime (int ac, char** av) {
     char curl_str[BUFSIZ];
     curl_getstr(curl_str, ac, av);
+    //slurm_info(curl_str);
     system (curl_str); /// обработать ошибки
     return 0;
 }
@@ -58,20 +61,18 @@ int predicttime (int ac, char** av) {
 
 SPANK_PLUGIN(mlsp, 1);
 
-static spank_t mlsp_sp;
+static bool has_predicttime_arg = false;
 
-static int predicttime_wrapper (int val, const char *optarg, int remote) {
-    /*int mlsp_ac = 0;
-    int test_ac = 15;
-    char** mlsp_av;
-    if ( mlsp_sp->job == NULL )
-        slurm_info("uzhas222");
-    int a = spank_get_item(mlsp_sp, S_JOB_ARGV, &test_ac, &mlsp_av);
-    slurm_info("SUKA MAZAFAKA %d %d", a, test_ac);
-    ///predicttime(mlsp_ac, mlsp_av);
-    //return 0;
+//static int predicttime_wrapper (int val, const char *optarg, int remote) {
+void predicttime_wrapper () {
+    //slurm_info("func: ac = %d", mlsp_ac);
+    predicttime(mlsp_ac, mlsp_av);
     _exit (0);
-    */
+    //return 0;
+}
+
+static int has_predicttime_arg_func (int val, const char *optarg, int remote) {
+    has_predicttime_arg = true;
     return 0;
 }
 
@@ -81,48 +82,30 @@ struct spank_option spank_options[] = {
       "Predict time of running the task",
       0,
       0,
-      (spank_opt_cb_f) predicttime_wrapper // or null_func
+      (spank_opt_cb_f) has_predicttime_arg_func
     },
     SPANK_OPTIONS_TABLE_END
 };
 
-// ____________________________________________________
-// some trash
-//extern enum spank_context_type;
-
 int slurm_spank_init(spank_t sp, int ac, char** av) {
-    slurm_info("KEKEKEKEKEK: %p", sp);
+    spank_err_t get_item_err = spank_get_item(sp, S_JOB_ARGV, &mlsp_ac, &mlsp_av);
+    //slurm_info("init: get_item_err = %d, ac = %d", get_item_err, mlsp_ac);
 }
 
 int slurm_spank_local_user_init(spank_t sp, int ac, char** av) {
     // Если не в srun / sbatch, то просто выйдем из функции и продолжится работа slurm
     //if (!( (spank_context () == S_CTX_LOCAL) || (spank_context () == S_CTX_ALLOCATOR) ))
-    slurm_info("func");
-
     if (spank_context () != S_CTX_LOCAL)
         return (0);
 
-    slurm_info("func");
-    if ( sp->job == NULL )
-        slurm_info("%p", sp);
-    mlsp_sp = sp;
-    //enum spank_context_type A;
-    //A = sp->stack->type;
-    //slurm_info("%d", (int)A);
+    // на память
+    //if ( sp->job == NULL )
+        //slurm_info("%p", sp);
 
-   // mlsp_ac = ac;
-   // mlsp_av = av;
-    int test_ac = 0;
-    char** test_av;
-    //int a = spank_get_item(sp, S_JOB_ARGV, &test_ac, &test_av);
-    int a = spank_get_item(sp, S_JOB_ARGV, &test_ac, &test_av);
+    spank_err_t get_item_err = spank_get_item(sp, S_JOB_ARGV, &mlsp_ac, &mlsp_av);
+    //slurm_info("local user init: get_item_err = %d, ac = %d", get_item_err, mlsp_ac);
 
-    slurm_info("SUKA MAZAFAKA %d %d", a, test_ac);
-
-    slurm_info("PRINT CMMAND ARGS");
-    for (int i = 0; i< test_ac; ++i) {
-        slurm_info("CMD[%d]: %s", i, test_av[i]);
-    }
-
-
+    if (has_predicttime_arg)
+        predicttime_wrapper();
+    return 0;
 }
