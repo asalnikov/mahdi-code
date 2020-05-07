@@ -88,8 +88,9 @@ struct spank_option spank_options[] = {
 };
 
 int slurm_spank_init(spank_t sp, int ac, char** av) {
-    spank_err_t get_item_err = spank_get_item(sp, S_JOB_ARGV, &mlsp_ac, &mlsp_av);
+    //spank_err_t get_item_err = spank_get_item(sp, S_JOB_ARGV, &mlsp_ac, &mlsp_av);
     //slurm_info("init: get_item_err = %d, ac = %d", get_item_err, mlsp_ac);
+    return 0;
 }
 
 int slurm_spank_local_user_init(spank_t sp, int ac, char** av) {
