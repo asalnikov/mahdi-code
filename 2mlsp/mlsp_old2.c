@@ -18,6 +18,8 @@
 
 
 // Work with predict-time-server
+static int mlsp_ac;
+static char** mlsp_av;
 
 // ["s1", "s2", "s3"]
 void json_getstr (char* json_str, int ac, char** av) {
@@ -62,8 +64,9 @@ SPANK_PLUGIN(mlsp, 1);
 static bool has_predicttime_arg = false;
 
 //static int predicttime_wrapper (int val, const char *optarg, int remote) {
-void predicttime_wrapper (int ac, char** av) {
-    predicttime(ac, av);
+void predicttime_wrapper () {
+    //slurm_info("func: ac = %d", mlsp_ac);
+    predicttime(mlsp_ac, mlsp_av);
     _exit (0);
     //return 0;
 }
@@ -84,36 +87,30 @@ struct spank_option spank_options[] = {
     SPANK_OPTIONS_TABLE_END
 };
 
-bool true_spank_context() {
-    return ( (spank_context () != S_CTX_LOCAL) || (spank_context () != S_CTX_ALLOCATOR) ) ? false : true;
+int slurm_spank_init(spank_t sp, int ac, char** av) {
+    //spank_err_t get_item_err = spank_get_item(sp, S_JOB_ARGV, &mlsp_ac, &mlsp_av);
+    //slurm_info("init: get_item_err = %d, ac = %d", get_item_err, mlsp_ac);
+    pid_t srun_pid = getpid();
+    pid_t srun_ppid = getppid();
+    slurm_info("%d %d", srun_pid, srun_ppid);
+    return 0;
 }
 
-int slurm_spank_init_post_opt(spank_t sp, int ac, char** av) {
-    if ( !true_spank_context() || !has_predicttime_arg)
-        return 0;
+int slurm_spank_local_user_init(spank_t sp, int ac, char** av) {
+//int slurm_spank_init_post_opt(spank_t sp, int ac, char** av) {
+    // Если не в srun / sbatch, то просто выйдем из функции и продолжится работа slurm
+    //if (!( (spank_context () == S_CTX_LOCAL) || (spank_context () == S_CTX_ALLOCATOR) ))
+//    if (spank_context () != S_CTX_LOCAL)
+        return (0);
 
-    pid_t srun_pid = getpid();
-    char* cmdline_file_str[BUFSIZ];
-    sprintf(cmdline_file_str, "/proc/%d/cmdline", (int)srun_pid);
+    // на память
+    //if ( sp->job == NULL )
+        //slurm_info("%p", sp);
 
-    FILE* cmdline_file = fopen(cmdline_file_str, "r");
-    /// dinamic cmdline
-    char cmdline[BUFSIZ];
-    int cmdline_len = fread(cmdline, 1, BUFSIZ, cmdline_file);
-
-    int proc_ac = 0;
-    char** proc_av;
-    for (int i = 0; i < cmdline_len; ++i) {
-        int c = i;
-        if (cmdline[i] == '\0') {
-
-        }
-    }
-    //printf("%d\n%s\n", cmdline_len, cmdline);
-
-    predicttime_wrapper(proc_ac, proc_av);
-
-    /// clear memory
-
-    return 0;
+//    spank_err_t get_item_err = spank_get_item(sp, S_JOB_ARGV, &mlsp_ac, &mlsp_av);
+//    slurm_info("local user init: get_item_err = %d, ac = %d", get_item_err, mlsp_ac);
+//
+//    if (has_predicttime_arg)
+//        predicttime_wrapper();
+//    return 0;
 }
