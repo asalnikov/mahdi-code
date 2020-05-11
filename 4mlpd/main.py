@@ -86,14 +86,14 @@ def fit_thread_func():
     while True:
         fit()
         time.sleep(FitUpdateTime)
-fit_thread = threading.Thread(target=fit_thread_func)
+fit_thread = threading.Thread(target=fit_thread_func, daemon=True)
 fit_thread.start()
 
 def sigfitupdate_handler(signum, frame):
     msg("Caught the signal to force re-fit the model.")
     if fit_mtx.locked():
         return 0
-    sigfitupdate_thread = threading.Thread(target=fit)
+    sigfitupdate_thread = threading.Thread(target=fit, daemon=True)
     sigfitupdate_thread.start()
     return 0
 
@@ -109,7 +109,10 @@ def sigpredictupdate_handler(signum, frame):
 signal.signal(sigpredictupdate, sigpredictupdate_handler)
 
 def predict(params):
-    return MLModule.predict(MLModelStable, params)
+    MLModelStable_mtx.acquire()
+    ans = MLModule.predict(MLModelStable, params)
+    MLModelStable_mtx.release()
+    return ans
 
 app = flask.Flask("predict server")
 @app.route("/", methods=['POST'])
