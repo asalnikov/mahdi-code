@@ -56,7 +56,7 @@ int predicttime (int ac, char** av) {
 
     // http://localhost:4567/
     const char config_tag[] = "server_url ";
-    FILE* config_file = fopen("mlsp.conf", "r");
+    FILE* config_file = fopen("/etc/slurm-llnl/mlsp.conf", "r");
     if (config_file == NULL) {
         slurm_info("Configuration file doesn't exist / allowed");
         return 2;

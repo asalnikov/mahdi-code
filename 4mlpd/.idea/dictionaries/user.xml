@@ -2,6 +2,7 @@
   <dictionary name="user">
     <words>
       <w>mlpd</w>
+      <w>sdbi</w>
       <w>sigfitupdate</w>
       <w>sigpredictupdate</w>
       <w>tensorflow</w>
