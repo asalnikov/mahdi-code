@@ -1,10 +1,14 @@
 <component name="ProjectDictionaryState">
   <dictionary name="user">
     <words>
+      <w>llnl</w>
       <w>mlpd</w>
       <w>sdbi</w>
       <w>sigfitupdate</w>
       <w>sigpredictupdate</w>
+      <w>slurm</w>
+      <w>slurmdbd</w>
+      <w>slurmdbdconf</w>
       <w>tensorflow</w>
     </words>
   </dictionary>

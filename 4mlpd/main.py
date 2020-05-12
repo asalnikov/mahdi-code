@@ -77,7 +77,7 @@ fit_mtx = threading.Lock()
 
 def fit():
     fit_mtx.acquire()
-    MLModelNew = MLModule.fit(sdbi.logs(), sdbi.sinfo())
+    MLModelNew = MLModule.fit(sdbi.slurm_db())
     MLModelStable_change(MLModelNew)
     save_model(MLModelNew)
     fit_mtx.release()
