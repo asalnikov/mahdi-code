@@ -16,17 +16,18 @@
 #include <curl/curl.h>
 #include <slurm/spank.h>
 
+#include <src/sbatch/opt.h>
 #include <src/common/plugstack.c> // потом лучше убрать
 
 
 // Work with predict-time-server
 
-// ["s1", "s2", "s3"]
+// [["s1", "s2", "s3"], ["str1", "str2"]]
 void json_getstr (char** json_str, int ac, char** av) {
-    int json_len = 2;
+    int json_len = 30;
     char* jsons = (char*)malloc(json_len * sizeof(char));
     jsons[0] = '\0';
-    strcat(jsons, "[");
+    strcat(jsons, "[[");
     for (int i = 0; i < ac; ++i) {
         int av_i_len = strlen(av[i]);
         jsons = (char*)realloc(jsons, (json_len += av_i_len + 4)*sizeof(char));
@@ -36,7 +37,36 @@ void json_getstr (char** json_str, int ac, char** av) {
         if (i != ac - 1)
             strcat(jsons, ", ");
     }
-    strcat(jsons, "]");
+    strcat(jsons, "], [");
+
+    if (spank_context () == S_CTX_ALLOCATOR) {
+        const char sbatch_str[] = "#SBATCH ";
+        char* script_path = process_options_first_pass(ac, av);
+        if (script_path != NULL) {
+            bool script_has_arg = false;
+            FILE* script = fopen(script_path, "r");
+            char script_curstr[BUFSIZ];
+            while (!feof(script)) {
+                fgets(script_curstr, BUFSIZ, script);
+                if (!strncmp(script_curstr, sbatch_str, sizeof(sbatch_str) - 1)) {
+                    script_has_arg = true;
+                    char* cur_param = script_curstr + sizeof(sbatch_str) - 1;
+                    int cur_param_len = strlen(cur_param);
+                    cur_param[cur_param_len - 1] = '\0';
+                    jsons = (char*)realloc(jsons, (json_len += cur_param_len + 4)*sizeof(char));
+                    strcat(jsons, "\"");
+                    strcat(jsons, cur_param);
+                    strcat(jsons, "\", ");
+                }
+            }
+            fclose(script);
+            if (script_has_arg)
+                jsons[strlen(jsons) - 2] = '\0';
+        }
+    }
+
+    strcat(jsons, "]]");
+    //slurm_info("jsons = %s", jsons);
     *json_str = jsons;
 }
 

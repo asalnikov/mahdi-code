@@ -5,7 +5,7 @@ import signal
 import flask
 import importlib
 import pickle
-import tensorflow
+#import tensorflow
 
 
 # Configuration
@@ -49,7 +49,8 @@ MLModelFile_mtx = threading.Lock()
 def save_model(MLModel):
     MLModelFile_mtx.acquire()
     if MLModule.ml_lib == "tensorflow":
-        MLModel.save(MLModelFileStr)
+       #MLModel.save(MLModelFileStr)
+       exit(1)
     elif MLModule.ml_lib == "other":
         with open(MLModelFileStr, 'wb') as f:
             pickle.dump(MLModel, f)
