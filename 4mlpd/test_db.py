@@ -40,19 +40,15 @@ cursor = db.cursor()
 query = \
     """
         select *
-        /*    id_job,
-            job_name,
-            time_submit,
-            time_start,
-            time_end,
-            id_user,
-            id_group,
-            timelimit,
-            cpus_req,
-            mem_req*/
         from
             cluster_job_table
       """
 
 cursor.execute(query)
-print(cursor.fetchall())
+
+data = cursor.fetchall()
+
+l = len(data)
+task = data[l//2]
+#print(l, task)
+print(task[46-8] - task[45-8])

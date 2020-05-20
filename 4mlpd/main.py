@@ -5,7 +5,7 @@ import signal
 import flask
 import importlib
 import pickle
-#import tensorflow
+import tensorflow
 
 
 # Configuration
@@ -23,6 +23,7 @@ msg("Initialization predict server")
 
 import slurmdb_import as sdbi
 
+# Configuration
 msg("Read configuration file")
 conf = configparser.ConfigParser()
 conf.read(conf_path)
@@ -49,7 +50,7 @@ MLModelFile_mtx = threading.Lock()
 def save_model(MLModel):
     MLModelFile_mtx.acquire()
     if MLModule.ml_lib == "tensorflow":
-       #MLModel.save(MLModelFileStr)
+       MLModel.save(MLModelFileStr)
        exit(1)
     elif MLModule.ml_lib == "other":
         with open(MLModelFileStr, 'wb') as f:
@@ -97,7 +98,6 @@ def sigfitupdate_handler(signum, frame):
     sigfitupdate_thread = threading.Thread(target=fit, daemon=True)
     sigfitupdate_thread.start()
     return 0
-
 signal.signal(sigfitupdate, sigfitupdate_handler)
 
 
