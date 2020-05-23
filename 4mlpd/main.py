@@ -122,5 +122,6 @@ def index():
         return "Нет результата. Модель еще не доготовилась!"
     else:
         params = flask.request.json
+        msg(str(params))
         return str(time.strftime('%H:%M:%S', time.gmtime(predict(params))))
 app.run(host=ServerHost, port=ServerPort)

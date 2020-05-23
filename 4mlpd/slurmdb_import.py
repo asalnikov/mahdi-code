@@ -79,7 +79,7 @@ def slurm_db():
         db=db_storage
     )
 
-    cursor = db.cursor()
+    cursor = db.cursor(MySQLdb.cursors.DictCursor)
     query = "select * from cluster_job_table"
     cursor.execute(query)
     data = cursor.fetchall()

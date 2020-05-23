@@ -35,7 +35,7 @@ db = MySQLdb.connect(
     db=db_storage
 )
 
-cursor = db.cursor()
+cursor = db.cursor(MySQLdb.cursors.DictCursor)
 
 query = \
     """
@@ -47,8 +47,9 @@ query = \
 cursor.execute(query)
 
 data = cursor.fetchall()
+#print(data)
 
 l = len(data)
-task = data[l//2]
-#print(l, task)
-print(task[46-8] - task[45-8])
+task = data[l//2 + 1]
+print(l, task)
+print(task['time_end'] - task['time_start'])
