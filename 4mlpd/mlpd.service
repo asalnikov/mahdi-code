@@ -1,0 +1,13 @@
+[Unit]
+Description=Machine learning Python daemon (MLPD)
+After=slurmctld.service
+ConditionPathExists=/home/user/диплом/mahdi-code/4mlpd/mlpd.conf
+
+[Service]
+Type=simple
+WorkingDirectory=/home/user/диплом/mahdi-code/4mlpd
+ExecStart=/bin/python3 /home/user/диплом/mahdi-code/4mlpd/main.py
+PIDFile=/run/mlpd.pid
+LimitNOFILE=65536
+TasksMax=infinity
+
