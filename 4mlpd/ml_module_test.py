@@ -8,7 +8,7 @@ ml_lib = "other"
 def fit(data):
     l = len(data)
     if l > 0:
-        print(data[l // 2])
+        #print(data[l // 2])
         return data[l // 2]
     else:
         print("need to fix db")

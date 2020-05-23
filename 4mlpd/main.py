@@ -13,6 +13,7 @@ conf_path = "mlpd.conf"
 sigfitupdate = signal.SIGUSR1
 sigpredictupdate = signal.SIGUSR2
 commenting = True
+fit_time_file_path = '/tmp/mpld_fit_time'
 
 
 def msg(s):
@@ -49,6 +50,7 @@ MLModelFile_mtx = threading.Lock()
 
 def save_model(MLModel):
     MLModelFile_mtx.acquire()
+    msg("Save model")
     if MLModule.ml_lib == "tensorflow":
        MLModel.save(MLModelFileStr)
        exit(1)
@@ -62,6 +64,7 @@ def save_model(MLModel):
 def load_model():
     MLModel = 0
     MLModelFile_mtx.acquire()
+    msg("Load model")
     if MLModule.ml_lib == "tensorflow":
         MLModel = tensorflow.keras.models.load_model(MLModelFileStr) # need numpy==1.16.4
     elif MLModule.ml_lib == "other":
@@ -72,20 +75,47 @@ def load_model():
     MLModelFile_mtx.release()
     return MLModel
 
+def update_model():
+    MLModelNew = load_model()
+    MLModelStable_change(MLModelNew)
+
 
 # Fit thread (1, 2)
 msg("Start fit thread")
 fit_mtx = threading.Lock()
+
+def read_fit_time():
+    msg("Read fit time")
+    fit_time = 0
+    try:
+        fit_time_file = open(fit_time_file_path, 'r')
+        fit_time = float(fit_time_file.read())
+        fit_time_file.close()
+    except Exception:
+        pass
+    return fit_time
+
+def write_fit_time():
+    msg("Write fit time")
+    fit_time_file = open(fit_time_file_path, 'w')
+    fit_time_file.write(str(time.time()))
+    fit_time_file.close()
 
 def fit():
     fit_mtx.acquire()
     MLModelNew = MLModule.fit(sdbi.slurm_db())
     MLModelStable_change(MLModelNew)
     save_model(MLModelNew)
+    write_fit_time()
     fit_mtx.release()
 
 def fit_thread_func():
     while True:
+        time_to_fit_update = time.time() - read_fit_time()
+        diff_time = time_to_fit_update - FitUpdateTime
+        if diff_time < 0:
+            update_model()
+            time.sleep(-diff_time)
         fit()
         time.sleep(FitUpdateTime)
 fit_thread = threading.Thread(target=fit_thread_func, daemon=True)
@@ -105,8 +135,7 @@ signal.signal(sigfitupdate, sigfitupdate_handler)
 msg("Start predict server")
 def sigpredictupdate_handler(signum, frame):
     msg("Caught the signal to force load the model.")
-    MLModelNew = load_model()
-    MLModelStable_change(MLModelNew)
+    update_model()
 signal.signal(sigpredictupdate, sigpredictupdate_handler)
 
 def predict(params):
@@ -124,4 +153,4 @@ def index():
         params = flask.request.json
         msg(str(params))
         return str(time.strftime('%H:%M:%S', time.gmtime(predict(params))))
-app.run(host=ServerHost, port=ServerPort)
+app.run(host=ServerHost, port=ServerPort, )
