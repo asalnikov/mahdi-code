@@ -153,4 +153,4 @@ def index():
         params = flask.request.json
         msg(str(params))
         return str(time.strftime('%H:%M:%S', time.gmtime(predict(params))))
-app.run(host=ServerHost, port=ServerPort, )
+app.run(host=ServerHost, port=ServerPort)
