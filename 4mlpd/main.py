@@ -110,11 +110,14 @@ def fit():
     fit_mtx.release()
 
 def fit_thread_func():
+    update_model_flag = True
     while True:
         time_to_fit_update = time.time() - read_fit_time()
         diff_time = time_to_fit_update - FitUpdateTime
         if diff_time < 0:
-            update_model()
+            if update_model_flag:
+                update_model()
+                update_model_flag = False
             time.sleep(-diff_time)
         fit()
         time.sleep(FitUpdateTime)
