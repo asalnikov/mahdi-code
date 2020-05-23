@@ -1,0 +1,6 @@
+#!/bin/sh
+
+cp mlpd.service /usr/lib/systemd/system/
+systemctl daemon-reload
+systemctl start mlpd
+systemctl status mlpd.service
