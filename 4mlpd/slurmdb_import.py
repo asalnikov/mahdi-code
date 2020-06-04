@@ -56,8 +56,10 @@ import gc
 # | tres_req           | text                | NO   |     | ''         |                |
 # +--------------------+---------------------+------+-----+------------+----------------+
 
+def new_slurm_db():
+    return tuple()
 
-def slurm_db():
+def slurm_db(time_from, time_to):
     # надо доделать обработку конфига
     slurmdbdconf_str = "[fake_header]\n" + open("/etc/slurm-llnl/slurmdbd.conf", 'r').read()
     # print(slurmdbdconf_str)
@@ -80,7 +82,9 @@ def slurm_db():
     )
 
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
-    query = "select * from cluster_job_table"
+    query = "select * \
+     from cluster_job_table \
+     where time_submit >= " + str(int(time_from)) + " and time_submit < " + str(int(time_to))
     cursor.execute(query)
     data = cursor.fetchall()
 

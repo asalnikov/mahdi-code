@@ -37,19 +37,21 @@ db = MySQLdb.connect(
 
 cursor = db.cursor(MySQLdb.cursors.DictCursor)
 
-query = \
-    """
-        select *
-        from
-            cluster_job_table
-      """
+tme = int(time.time())
+print(tme)
+
+time_from = tme - 1000
+time_to = tme - 100
+
+query = "select * \
+     from cluster_job_table \
+     where time_submit >= " + str(int(time_from)) + " and time_submit < " + str(int(time_to))
 
 cursor.execute(query)
 
-data = cursor.fetchall()
-#print(data)
+data = list(cursor.fetchall())
+print(data)
 
 l = len(data)
-task = data[l//2 + 1]
-print(l, task)
-print(task['time_end'] - task['time_start'])
+
+print(l )

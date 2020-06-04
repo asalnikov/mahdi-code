@@ -5,7 +5,8 @@ import random
 ml_lib = "other"
 
 
-def fit(data):
+def fit(ml, dataA, dataB):
+    data = list(dataA) + list(dataB)
     time.sleep(15)
     l = len(data)
     if l > 0:

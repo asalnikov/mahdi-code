@@ -6,12 +6,12 @@ import flask
 import importlib
 import pickle
 import tensorflow
+import copy
 
 # Configuration
 conf_path = 'mlpd.conf'
 sigfitupdate = signal.SIGUSR1
 sigpredictupdate = signal.SIGUSR2
-fit_time_file_path = '/tmp/mpld_fit_time'
 commenting = True
 
 def msg(s):
@@ -21,12 +21,15 @@ def msg(s):
 import slurmdb_import as sdbi
 
 class TimeRW:
-    @staticmethod
-    def read():
-        msg("Read fit time")
+    def __init__(self, FileName):
+        self.FileName = FileName
+        self.file_path = '/tmp/' + self.FileName
+
+    def read(self):
+        msg("Read time from " + str(self.FileName))
         fit_time = 0
         try:
-            fit_time_file = open(fit_time_file_path, 'r')
+            fit_time_file = open(self.file_path, 'r')
             try:
                 fit_time = float(fit_time_file.read())
             except Exception:
@@ -36,12 +39,22 @@ class TimeRW:
             pass
         return fit_time
 
-    @staticmethod
-    def write():
-        msg("Write fit time")
-        fit_time_file = open(fit_time_file_path, 'w')
-        fit_time_file.write(str(time.time()))
+    def write(self, write_time=time.time()):
+        msg("Write time in " + str(self.FileName))
+        fit_time_file = open(self.file_path, 'w')
+        fit_time_file.write(str(write_time))
         fit_time_file.close()
+
+class MLModuleProxy:
+    def __init__(self, MLModule):
+        self.MLModule = importlib.import_module(MLModule)
+        self.ml_lib = self.MLModule.ml_lib
+
+    def fit(self, ml, data_main, data_add):
+        return self.MLModule.fit(ml, data_main, data_add)
+
+    def predict(self, ml, params):
+        return self.MLModule.predict(ml, params)
 
 class ModelWrapper:
     class ModelNullException(Exception):
@@ -54,6 +67,10 @@ class ModelWrapper:
         self.MLModule = MLModule
         self.MLModelFileStr = MLModelFileStr
         self.fit_mtx = threading.Lock()
+        self.FitTimeRW = TimeRW('mlpd_fit_time')
+        self.DBReqTimeRW = TimeRW('mlpd_db_req_time')
+        self.need_read_db_dump = True
+        self.db_dump = sdbi.new_slurm_db()
 
     def __change(self, MLModelNew):
         self.MLModelStable_mtx.acquire()
@@ -103,16 +120,43 @@ class ModelWrapper:
         return ans
 
     def fit(self):
+        mlpd_slurm_db_dump = '/tmp/mlpd_slurm_db_dump'
         self.fit_mtx.acquire()
         msg('Fit the model')
-        MLModelNew = self.MLModule.fit(sdbi.slurm_db())
+
+        MLModelForUpdate = copy.deepcopy(self.MLModelStable)
+
+        #load dbA
+        timeA = self.DBReqTimeRW.read()
+        if self.need_read_db_dump:
+            if timeA > 0:
+                with open(mlpd_slurm_db_dump, 'rb') as f:
+                    self.db_dump = pickle.load(f)
+            self.need_read_db_dump = False
+
+        #load dbB
+        time_db_req = time.time()
+        dbB = sdbi.slurm_db(timeA, time_db_req)
+
+        #Fit
+        MLModelNew = self.MLModule.fit(MLModelForUpdate, self.db_dump, dbB)
         self.__change(MLModelNew)
         self.__save(MLModelNew)
-        TimeRW.write()
+        self.FitTimeRW.write()
+
+        #save dbA + dbB
+        self.db_dump = tuple(list(self.db_dump) + list(dbB))
+        with open(mlpd_slurm_db_dump, 'wb') as f:
+            pickle.dump(self.db_dump, f)
+        self.DBReqTimeRW.write(time_db_req)
+
         self.fit_mtx.release()
 
     def fit_is_worked(self):
         return self.fit_mtx.locked()
+
+    def fit_update_time(self):
+        return self.FitTimeRW.read()
 
 class FitSystem:
     def __init__(self, model, FitUpdateTime):
@@ -128,7 +172,7 @@ class FitSystem:
     def __fit_thread_func(self):
         load_model_flag = True
         while True:
-            time_to_fit_update = time.time() - TimeRW.read()
+            time_to_fit_update = time.time() - self.__model.fit_update_time()
             diff_time = time_to_fit_update - self.__FitUpdateTime
             if diff_time < 0:
                 if load_model_flag:
@@ -167,7 +211,7 @@ class PredictSystem:
     def __SignalHandlerStart(self):
         def sigpredictupdate_handler(signum, frame):
             msg("Caught the signal to force load the model.")
-            self.model.update()
+            self.model.load()
         signal.signal(sigpredictupdate, sigpredictupdate_handler)
 
     def __ServerStart(self):
@@ -191,7 +235,7 @@ class Configuration:
         conf.read(conf_path)
 
         msg("Load ML Module")
-        self.MLModule = importlib.import_module(conf.get("MLPD", "MLModule"))
+        self.MLModule = conf.get("MLPD", "MLModule")
 
         self.FitUpdateTime = int(conf.get("MLPD", "FitUpdateTime")) * 60 * 60
         self.MLModelFileStr = conf.get("MLPD", "SavedModel")
@@ -202,7 +246,7 @@ def mlpd():
     msg("Initialization predict server")
     cfg = Configuration()
 
-    model = ModelWrapper(cfg.MLModule, cfg.MLModelFileStr)
+    model = ModelWrapper(MLModuleProxy(cfg.MLModule), cfg.MLModelFileStr)
 
     fitSystem = FitSystem(model, cfg.FitUpdateTime)
     fitSystem.start()
