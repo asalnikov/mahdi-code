@@ -20,7 +20,7 @@ def msg(s):
 
 import slurmdb_import as sdbi
 
-class FitTime:
+class TimeRW:
     @staticmethod
     def read():
         msg("Read fit time")
@@ -108,7 +108,7 @@ class ModelWrapper:
         MLModelNew = self.MLModule.fit(sdbi.slurm_db())
         self.__change(MLModelNew)
         self.__save(MLModelNew)
-        FitTime.write()
+        TimeRW.write()
         self.fit_mtx.release()
 
     def fit_is_worked(self):
@@ -128,7 +128,7 @@ class FitSystem:
     def __fit_thread_func(self):
         load_model_flag = True
         while True:
-            time_to_fit_update = time.time() - FitTime.read()
+            time_to_fit_update = time.time() - TimeRW.read()
             diff_time = time_to_fit_update - self.__FitUpdateTime
             if diff_time < 0:
                 if load_model_flag:
