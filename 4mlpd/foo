@@ -1,3 +1,0 @@
-signal.sigwait(sigpredictupdate)
-
-curl -i -H "Content-Type: application/json" -X POST -d '["sdfs", "9879", "sdws"]' http://localhost:4567/

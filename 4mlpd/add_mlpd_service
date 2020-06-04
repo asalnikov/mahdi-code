@@ -1,5 +1,7 @@
 #!/bin/sh
 
+pip3 install mysqlclient numpy==1.16.4 tensorflow Flask
+python3 mlpd_service_script_gen.py
 cp mlpd.service /usr/lib/systemd/system/
 systemctl daemon-reload
 systemctl start mlpd
