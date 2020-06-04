@@ -21,9 +21,6 @@ def msg(s):
 import slurmdb_import as sdbi
 
 class FitTime:
-    def __init__(self):
-        pass
-
     @staticmethod
     def read():
         msg("Read fit time")
@@ -45,9 +42,11 @@ class FitTime:
         fit_time_file = open(fit_time_file_path, 'w')
         fit_time_file.write(str(time.time()))
         fit_time_file.close()
-        return 0
 
 class ModelWrapper:
+    class ModelNullException(Exception):
+        pass
+
     def __init__(self, MLModule, MLModelFileStr):
         self.MLModelStable = 0
         self.MLModelStable_mtx = threading.Lock()
@@ -66,7 +65,6 @@ class ModelWrapper:
         msg("Save model")
         if self.MLModule.ml_lib == "tensorflow":
             MLModel.save(self.MLModelFileStr)
-            exit(1)
         elif self.MLModule.ml_lib == "other":
             with open(self.MLModelFileStr, 'wb') as f:
                 pickle.dump(MLModel, f)
@@ -77,7 +75,6 @@ class ModelWrapper:
     def __load(self):
         MLModel = 0
         self.MLModelFile_mtx.acquire()
-        msg("Load model")
         if self.MLModule.ml_lib == "tensorflow":
             MLModel = tensorflow.keras.models.load_model(self.MLModelFileStr)  # need numpy==1.16.4
         elif self.MLModule.ml_lib == "other":
@@ -88,18 +85,26 @@ class ModelWrapper:
         self.MLModelFile_mtx.release()
         return MLModel
 
-    def update(self):
-        MLModelNew = self.__load()
-        self.__change(MLModelNew)
+    def load(self):
+        msg("Load Model")
+        self.__change(self.__load())
 
     def predict(self, params):
+        msg("Predict time")
+        if self.MLModelStable == 0:
+            raise self.ModelNullException
         self.MLModelStable_mtx.acquire()
-        ans = self.MLModule.predict(self.MLModelStable, params)
-        self.MLModelStable_mtx.release()
+        try:
+            ans = self.MLModule.predict(self.MLModelStable, params)
+        except Exception:
+            raise
+        finally:
+            self.MLModelStable_mtx.release()
         return ans
 
     def fit(self):
         self.fit_mtx.acquire()
+        msg('Fit the model')
         MLModelNew = self.MLModule.fit(sdbi.slurm_db())
         self.__change(MLModelNew)
         self.__save(MLModelNew)
@@ -109,40 +114,44 @@ class ModelWrapper:
     def fit_is_worked(self):
         return self.fit_mtx.locked()
 
-    def model_is_ready(self):
-        return self.MLModelStable != 0
-
 class FitSystem:
     def __init__(self, model, FitUpdateTime):
-        self.FitUpdateTime = FitUpdateTime
-        self.model = model
-        self.fit_thread = threading.Thread(target=self.fit_thread_func, daemon=True)
+        self.__FitUpdateTime = FitUpdateTime
+        self.__model = model
+        self.__fit_thread = threading.Thread(target=self.__fit_thread_func, daemon=True)
 
     def start(self):
         msg("Start fit thread")
-        self.fit_thread.start()
-        signal.signal(sigfitupdate, self.sigfitupdate_handler)
+        self.__fit_thread.start()
+        self.__SignalHandlerStart()
 
-    def fit_thread_func(self):
-        update_model_flag = True
+    def __fit_thread_func(self):
+        load_model_flag = True
         while True:
             time_to_fit_update = time.time() - FitTime.read()
-            diff_time = time_to_fit_update - self.FitUpdateTime
+            diff_time = time_to_fit_update - self.__FitUpdateTime
             if diff_time < 0:
-                if update_model_flag:
-                    self.model.update()
-                    update_model_flag = False
-                time.sleep(-diff_time)
-            self.model.fit()
-            time.sleep(self.FitUpdateTime)
+                if load_model_flag:
+                    self.__model.load()
+                    load_model_flag = False
+                self.__sleep(-diff_time)
+            self.__model.fit()
+            self.__sleep(self.__FitUpdateTime)
 
-    def sigfitupdate_handler(self, signum, frame):
-        msg("Caught the signal to force re-fit the model.")
-        if self.model.fit_is_worked():
+    def __SignalHandlerStart(self):
+        def sigfitupdate_handler(signum, frame):
+            msg("Caught the signal to force re-fit the model.")
+            if self.__model.fit_is_worked():
+                return 0
+            sigfitupdate_thread = threading.Thread(target=self.__model.fit, daemon=True)
+            sigfitupdate_thread.start()
             return 0
-        sigfitupdate_thread = threading.Thread(target=self.model.fit, daemon=True)
-        sigfitupdate_thread.start()
-        return 0
+        signal.signal(sigfitupdate, sigfitupdate_handler)
+
+    @staticmethod
+    def __sleep(sec):
+        msg('Sleep ' + str(int(sec)) + ' seconds')
+        time.sleep(sec)
 
 class PredictSystem:
     def __init__(self, model, ServerHost, ServerPort):
@@ -152,27 +161,34 @@ class PredictSystem:
 
     def start(self):
         msg("Start predict server")
-        signal.signal(sigpredictupdate, self.sigpredictupdate_handler)
+        self.__SignalHandlerStart()
+        self.__ServerStart()
+
+    def __SignalHandlerStart(self):
+        def sigpredictupdate_handler(signum, frame):
+            msg("Caught the signal to force load the model.")
+            self.model.update()
+        signal.signal(sigpredictupdate, sigpredictupdate_handler)
+
+    def __ServerStart(self):
         app = flask.Flask("predict server")
         @app.route("/", methods=['POST'])
         def index():
-            if not self.model.model_is_ready():
-                return "Нет результата. Модель еще не доготовилась!"
-            else:
-                params = flask.request.json
-                msg(str(params))
-                return str(time.strftime('%H:%M:%S', time.gmtime(self.model.predict(params))))
+            params = flask.request.json
+            try:
+                ans_time = self.model.predict(params)
+                return str(time.strftime('%H:%M:%S', time.gmtime(ans_time)))
+            except ModelWrapper.ModelNullException:
+                return 'Нет результата. Модель еще не доготовилась!'
+            except Exception:
+                return 'Ошибка в работе функции predict()'
         app.run(host=self.ServerHost, port=self.ServerPort)
 
-    def sigpredictupdate_handler(self, signum, frame):
-        msg("Caught the signal to force load the model.")
-        self.model.update()
-
 class Configuration:
-    def __init__(self, conf_file):
+    def __init__(self):
         msg("Read configuration file")
         conf = configparser.ConfigParser()
-        conf.read(conf_file)
+        conf.read(conf_path)
 
         msg("Load ML Module")
         self.MLModule = importlib.import_module(conf.get("MLPD", "MLModule"))
@@ -184,12 +200,16 @@ class Configuration:
 
 def mlpd():
     msg("Initialization predict server")
-    cfg = Configuration(conf_path)
+    cfg = Configuration()
+
     model = ModelWrapper(cfg.MLModule, cfg.MLModelFileStr)
+
     fitSystem = FitSystem(model, cfg.FitUpdateTime)
     fitSystem.start()
+
     predictSystem = PredictSystem(model, cfg.ServerHost, cfg.ServerPort)
     predictSystem.start()
+
     return 0
 
 if __name__ == "__main__":
