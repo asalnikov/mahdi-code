@@ -7,10 +7,10 @@ ml_lib = "other"
 
 def fit(ml, dataA, dataB):
     data = list(dataA) + list(dataB)
-    time.sleep(15)
+    #time.sleep(15)
     l = len(data)
     if l > 0:
-        #print(data[l // 2])
+        print(data[l // 2])
         return data[l // 2]
     else:
         print("need to fix db")
